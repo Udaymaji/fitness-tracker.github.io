@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fitness Tracker with AI Coach</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Marked.js for rendering Markdown from Gemini -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Custom Styles -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+        }
+        /* Custom scrollbar for a better look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        /* Simple animation for cards */
+        .card-enter {
+            animation: card-enter 0.5s ease-out;
+        }
+        @keyframes card-enter {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        /* Styling for generated workout plan */
+        #workout-plan-container h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        #workout-plan-container ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        #workout-plan-container li {
+            margin-bottom: 0.25rem;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-75 z-50 flex items-center justify-center">
+        <div class="text-center">
+            <svg class="animate-spin h-10 w-10 text-blue-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="mt-4 text-lg font-medium">Connecting to Fitness Hub...</p>
+        </div>
+    </div>
+
+    <div id="app-content" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 opacity-0 transition-opacity duration-500">
+        <!-- Header -->
+        <header class="mb-8">
+            <h1 class="text-4xl font-bold text-gray-900">Fitness Dashboard</h1>
+            <p class="text-gray-600 mt-1">Welcome back! Your AI coach is ready to assist you.</p>
+            <div class="mt-2 text-xs text-gray-500 bg-gray-100 p-2 rounded-lg inline-block">
+                User ID: <span id="userId" class="font-mono"></span>
+            </div>
+        </header>
+
+        <!-- Main Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left Column: Data Entry, AI Coach & Activity Log -->
+            <div class="lg:col-span-1 space-y-8">
+                <!-- Log New Activity -->
+                <div class="bg-white p-6 rounded-2xl shadow-lg card-enter">
+                    <h2 class="text-2xl font-bold mb-4">Log New Activity</h2>
+                    <form id="activity-form" class="space-y-4">
+                        <!-- Form fields remain the same -->
+                        <div>
+                            <label for="activity-type" class="block text-sm font-medium text-gray-700">Activity Type</label>
+                            <select id="activity-type" name="activity-type" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <option value="walking">Walking</option>
+                                <option value="running">Running</option>
+                                <option value="cycling">Cycling</option>
+                                <option value="swimming">Swimming</option>
+                                <option value="workout">Workout (Gym)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="duration" class="block text-sm font-medium text-gray-700">Duration (minutes)</label>
+                            <input type="number" id="duration" name="duration" min="1" required class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="distance" class="block text-sm font-medium text-gray-700">Distance (km, optional)</label>
+                            <input type="number" id="distance" name="distance" min="0" step="0.1" class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-transform transform hover:scale-105">
+                            Add Activity
+                        </button>
+                    </form>
+                </div>
+                
+                <!-- AI Fitness Coach -->
+                <div class="bg-white p-6 rounded-2xl shadow-lg card-enter">
+                    <h2 class="text-2xl font-bold mb-4">✨ AI Fitness Coach</h2>
+                    <p class="text-gray-600 mb-4">Get a personalized weekly workout plan based on your recent activities.</p>
+                    <button id="generate-plan-btn" class="w-full bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:from-purple-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-transform transform hover:scale-105">
+                        <span id="generate-plan-btn-text">Generate Weekly Plan</span>
+                        <svg id="generate-plan-spinner" class="animate-spin h-5 w-5 text-white mx-auto hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </button>
+                    <div id="workout-plan-container" class="mt-4 text-gray-700 prose prose-sm max-w-none"></div>
+                </div>
+
+                <!-- Daily Activity Log -->
+                <div class="bg-white p-6 rounded-2xl shadow-lg card-enter">
+                    <h2 class="text-2xl font-bold mb-4">Today's Activity Log</h2>
+                    <div id="activity-log" class="space-y-3 max-h-96 overflow-y-auto pr-2">
+                        <!-- Activities will be dynamically inserted here -->
+                        <p id="no-activities-msg" class="text-gray-500 text-center py-4">No activities logged for today yet.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Stats & Graph -->
+            <div class="lg:col-span-2 space-y-8">
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-lg text-center card-enter">
+                        <h3 class="text-lg font-medium text-gray-500">Total Steps</h3>
+                        <p id="total-steps" class="text-4xl font-bold mt-2 text-blue-600">0</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-lg text-center card-enter">
+                        <h3 class="text-lg font-medium text-gray-500">Calories Burned</h3>
+                        <p id="calories-burned" class="text-4xl font-bold mt-2 text-green-600">0</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-lg text-center card-enter">
+                        <h3 class="text-lg font-medium text-gray-500">Active Minutes</h3>
+                        <p id="active-minutes" class="text-4xl font-bold mt-2 text-purple-600">0</p>
+                    </div>
+                </div>
+
+                <!-- Progress Chart -->
+                <div class="bg-white p-6 rounded-2xl shadow-lg card-enter">
+                    <h2 class="text-2xl font-bold mb-4">Weekly Steps Progress</h2>
+                    <div class="h-96">
+                        <canvas id="progress-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Message Modal -->
+    <div id="message-modal" class="fixed bottom-5 right-5 bg-gray-900 text-white py-3 px-6 rounded-lg shadow-xl transform translate-y-20 opacity-0 transition-all duration-500 ease-in-out">
+        <p id="message-text"></p>
+    </div>
+
+
+    <!-- Firebase and App Logic -->
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, where, serverTimestamp, setLogLevel, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- GLOBAL VARIABLES & CONFIG ---
+        
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'fitness-tracker-app';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { /* Add local Firebase config here for testing */ };
+        
+        let app, auth, db;
+        let userId = null;
+        let activitiesCollectionRef;
+        let progressChart = null;
+        let allTimeActivities = []; // Store all activities for AI features
+
+        // --- INITIALIZATION ---
+
+        async function initialize() {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                setLogLevel('debug');
+                await setPersistence(auth, browserLocalPersistence);
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        document.getElementById('userId').textContent = userId;
+                        setupAppForUser();
+                    } else {
+                        await authenticateUser();
+                    }
+                });
+
+            } catch (error) {
+                console.error("Firebase Initialization Error:", error);
+                showModalMessage("Error connecting to the server.", 'error');
+                hideLoadingOverlay();
+            }
+        }
+
+        async function authenticateUser() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Authentication Error:", error);
+                showModalMessage("Authentication failed.", 'error');
+                hideLoadingOverlay();
+            }
+        }
+        
+        function setupAppForUser() {
+            const userActivitiesPath = `artifacts/${appId}/users/${userId}/activities`;
+            activitiesCollectionRef = collection(db, userActivitiesPath);
+            setupActivityListener();
+            hideLoadingOverlay();
+        }
+
+        // --- UI & DOM MANIPULATION ---
+
+        function hideLoadingOverlay() {
+            const overlay = document.getElementById('loading-overlay');
+            const appContent = document.getElementById('app-content');
+            overlay.classList.add('opacity-0');
+            appContent.classList.remove('opacity-0');
+            setTimeout(() => overlay.style.display = 'none', 500);
+        }
+
+        function showModalMessage(message, type = 'success') {
+            const modal = document.getElementById('message-modal');
+            const text = document.getElementById('message-text');
+            text.textContent = message;
+            
+            modal.className = 'fixed bottom-5 right-5 text-white py-3 px-6 rounded-lg shadow-xl transform transition-all duration-500 ease-in-out';
+            modal.classList.add(type === 'error' ? 'bg-red-600' : 'bg-gray-900');
+
+            modal.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('translate-y-20', 'opacity-0');
+            }, 4000);
+        }
+
+        // --- GEMINI API INTEGRATION ---
+
+        /**
+         * Calls the Gemini API to generate text content.
+         * @param {string} prompt The prompt to send to the model.
+         * @returns {Promise<string>} The generated text.
+         */
+        async function callGeminiAPI(prompt) {
+            const apiKey = ""; // Handled by the environment
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: prompt }] }]
+            };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorBody = await response.json();
+                    console.error("Gemini API Error:", errorBody);
+                    throw new Error(`API request failed with status ${response.status}`);
+                }
+
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 && result.candidates[0].content.parts.length > 0) {
+                    return result.candidates[0].content.parts[0].text;
+                } else {
+                    // Handle cases of safety blocks or empty responses
+                    return "The AI coach couldn't generate a response. This might be due to a safety filter. Please try a different request.";
+                }
+            } catch (error) {
+                console.error("Error calling Gemini API:", error);
+                throw error; // Re-throw to be caught by the caller
+            }
+        }
+
+        // --- DATA HANDLING & CALCULATIONS ---
+
+        const MET_VALUES = { walking: 3.5, running: 7.0, cycling: 6.0, swimming: 8.0, workout: 5.0 };
+        const AVG_BODY_WEIGHT_KG = 70;
+
+        function calculateCalories(activityType, durationMinutes) {
+            const met = MET_VALUES[activityType] || 3.0;
+            return Math.round((durationMinutes * met * 3.5 * AVG_BODY_WEIGHT_KG) / 200);
+        }
+
+        function calculateSteps(activityType, durationMinutes) {
+            if (activityType === 'walking') return durationMinutes * 100;
+            if (activityType === 'running') return durationMinutes * 180;
+            return 0;
+        }
+
+        // --- EVENT LISTENERS ---
+
+        document.getElementById('activity-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!userId) {
+                showModalMessage("User not authenticated. Please wait.", "error");
+                return;
+            }
+            const form = e.target;
+            const activityType = form['activity-type'].value;
+            const duration = parseInt(form['duration'].value);
+            const distance = form['distance'].value ? parseFloat(form['distance'].value) : null;
+
+            if (isNaN(duration) || duration <= 0) {
+                showModalMessage("Please enter a valid duration.", "error");
+                return;
+            }
+
+            const newActivity = {
+                type: activityType,
+                duration: duration,
+                distance: distance,
+                calories: calculateCalories(activityType, duration),
+                steps: calculateSteps(activityType, duration),
+                createdAt: serverTimestamp()
+            };
+
+            try {
+                await addDoc(activitiesCollectionRef, newActivity);
+                showModalMessage("Activity logged successfully!");
+                form.reset();
+            } catch (error) {
+                console.error("Error adding document: ", error);
+                showModalMessage("Failed to log activity.", "error");
+            }
+        });
+
+        // Event listener for the "Generate Weekly Plan" button
+        document.getElementById('generate-plan-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('generate-plan-btn');
+            const btnText = document.getElementById('generate-plan-btn-text');
+            const spinner = document.getElementById('generate-plan-spinner');
+            const planContainer = document.getElementById('workout-plan-container');
+
+            btn.disabled = true;
+            btnText.classList.add('hidden');
+            spinner.classList.remove('hidden');
+            planContainer.innerHTML = '<p>Generating your personalized plan...</p>';
+
+            try {
+                // Fetch the last 2 weeks of activities for context
+                const twoWeeksAgo = new Date();
+                twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+                const q = query(activitiesCollectionRef, where("createdAt", ">=", twoWeeksAgo));
+                const querySnapshot = await getDocs(q);
+                const recentActivities = querySnapshot.docs.map(doc => doc.data());
+
+                let activitySummary = "No recent activities logged.";
+                if (recentActivities.length > 0) {
+                    activitySummary = recentActivities.map(a => `${a.type} for ${a.duration} minutes`).join(', ');
+                }
+
+                const prompt = `
+                    As a fitness coach, create a balanced and motivational weekly workout plan for a user.
+                    Their recent activities from the last two weeks are: ${activitySummary}.
+                    The user's goal is general fitness.
+                    Structure the plan day-by-day for the next 7 days (e.g., Monday, Tuesday...).
+                    Include a mix of activities (like cardio, strength, and rest).
+                    Keep the tone encouraging and positive. Format the response using Markdown with headings for each day and bullet points for activities.
+                `;
+
+                const plan = await callGeminiAPI(prompt);
+                planContainer.innerHTML = marked.parse(plan); // Use marked.js to render markdown
+
+            } catch (error) {
+                planContainer.innerHTML = `<p class="text-red-500">Sorry, the AI coach failed to generate a plan. Please try again later.</p>`;
+            } finally {
+                btn.disabled = false;
+                btnText.classList.remove('hidden');
+                spinner.classList.add('hidden');
+            }
+        });
+        
+        // Delegated event listener for "Get Tip" buttons
+        document.getElementById('activity-log').addEventListener('click', async (e) => {
+            if (e.target && e.target.classList.contains('get-tip-btn')) {
+                const button = e.target;
+                const activityType = button.dataset.activityType;
+                
+                button.disabled = true;
+                button.textContent = '...';
+
+                try {
+                    const prompt = `Give me a single, concise, and helpful fitness tip for someone who just finished a ${activityType} session. The tip should be encouraging and easy to understand.`;
+                    const tip = await callGeminiAPI(prompt);
+                    showModalMessage(`✨ AI Tip: ${tip}`);
+                } catch (error) {
+                    showModalMessage("Could not get a tip from the AI coach.", "error");
+                } finally {
+                    button.disabled = false;
+                    button.textContent = '✨ Get Tip';
+                }
+            }
+        });
+
+
+        // --- REAL-TIME DATA & UI UPDATES ---
+
+        function setupActivityListener() {
+            const q = query(activitiesCollectionRef); // Listen to all activities now
+
+            onSnapshot(q, (snapshot) => {
+                allTimeActivities = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                const today = new Date().setHours(0, 0, 0, 0);
+                const todaysActivities = allTimeActivities.filter(act => 
+                    act.createdAt && act.createdAt.toDate().setHours(0, 0, 0, 0) === today
+                );
+                
+                updateDashboard(todaysActivities);
+                updateActivityLog(todaysActivities);
+                updateChart(allTimeActivities); // Pass all activities to chart for weekly view
+            }, (error) => {
+                console.error("Error listening to activities:", error);
+                showModalMessage("Could not fetch latest data.", "error");
+            });
+        }
+
+        function updateDashboard(activities) {
+            const totalSteps = activities.reduce((sum, act) => sum + (act.steps || 0), 0);
+            const caloriesBurned = activities.reduce((sum, act) => sum + (act.calories || 0), 0);
+            const activeMinutes = activities.reduce((sum, act) => sum + (act.duration || 0), 0);
+
+            document.getElementById('total-steps').textContent = totalSteps.toLocaleString();
+            document.getElementById('calories-burned').textContent = caloriesBurned.toLocaleString();
+            document.getElementById('active-minutes').textContent = activeMinutes.toLocaleString();
+        }
+
+        function updateActivityLog(activities) {
+            const logContainer = document.getElementById('activity-log');
+            const noActivitiesMsg = document.getElementById('no-activities-msg');
+            logContainer.innerHTML = ''; 
+
+            if (activities.length === 0) {
+                logContainer.appendChild(noActivitiesMsg);
+                noActivitiesMsg.style.display = 'block';
+            } else {
+                if (noActivitiesMsg) noActivitiesMsg.style.display = 'none';
+                activities.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+                
+                activities.forEach(act => {
+                    const activityEl = document.createElement('div');
+                    activityEl.className = 'flex justify-between items-center bg-gray-50 p-3 rounded-lg';
+                    
+                    const activityIcon = { walking: '🚶', running: '🏃', cycling: '🚴', swimming: '🏊', workout: '🏋️' }[act.type] || '💪';
+                    
+                    activityEl.innerHTML = `
+                        <div class="flex items-center">
+                            <span class="text-2xl mr-3">${activityIcon}</span>
+                            <div>
+                                <p class="font-semibold capitalize">${act.type}</p>
+                                <p class="text-sm text-gray-500">${act.duration} mins</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <div class="text-right">
+                                <p class="font-semibold">${(act.steps || 0).toLocaleString()} steps</p>
+                                <p class="text-sm text-gray-500">${(act.calories || 0).toLocaleString()} kcal</p>
+                            </div>
+                            <button class="get-tip-btn text-xs bg-purple-100 text-purple-700 font-semibold py-1 px-2 rounded-full hover:bg-purple-200 transition" data-activity-type="${act.type}">✨ Get Tip</button>
+                        </div>
+                    `;
+                    logContainer.appendChild(activityEl);
+                });
+            }
+        }
+        
+        function updateChart(activities) {
+            const ctx = document.getElementById('progress-chart').getContext('2d');
+            
+            const labels = [];
+            const data = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                labels.push(d.toLocaleDateString('en-US', { weekday: 'short' }));
+                
+                const dayStart = new Date(d).setHours(0, 0, 0, 0);
+                const dailySteps = activities
+                    .filter(act => act.createdAt && act.createdAt.toDate().setHours(0, 0, 0, 0) === dayStart)
+                    .reduce((sum, act) => sum + (act.steps || 0), 0);
+                data.push(dailySteps);
+            }
+
+            if (progressChart) {
+                progressChart.data.labels = labels;
+                progressChart.data.datasets[0].data = data;
+                progressChart.update();
+            } else {
+                progressChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Steps per Day',
+                            data: data,
+                            backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1,
+                            borderRadius: 8,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true, grid: { drawBorder: false } }, x: { grid: { display: false } } },
+                        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `${c.raw.toLocaleString()} steps` } } }
+                    }
+                });
+            }
+        }
+
+
+        // --- START THE APP ---
+        window.onload = initialize;
+
+    </script>
+</body>
+</html>
